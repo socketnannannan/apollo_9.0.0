@@ -101,11 +101,13 @@ const std::string& Stage::Name() const { return name_; }
 StageResult Stage::ExecuteTaskOnReferenceLine(
     const common::TrajectoryPoint& planning_start_point, Frame* frame) {
   StageResult stage_result;
+   // 检查参考线信息是否为空：
   if (frame->reference_line_info().empty()) {
     AERROR << "referenceline is empty in stage" << name_;
     return stage_result.SetStageStatus(StageStatusType::ERROR);
   }
   for (auto& reference_line_info : *frame->mutable_reference_line_info()) {
+    // 检查参考线是否可行驶以及是否为变道路径，如果不可行或为变道路径，则跳过处理
     if (!reference_line_info.IsDrivable()) {
       AERROR << "The generated path is not drivable skip";
       reference_line_info.SetDrivable(false);
@@ -125,11 +127,11 @@ StageResult Stage::ExecuteTaskOnReferenceLine(
 
       const double end_timestamp = Clock::NowInSeconds();
       const double time_diff_ms = (end_timestamp - start_timestamp) * 1000;
-      ADEBUG << "after task[" << task->Name()
-             << "]: " << reference_line_info.PathSpeedDebugString();
-      ADEBUG << task->Name() << " time spend: " << time_diff_ms << " ms.";
-      AINFO << "Planning Perf: task name [" << task->Name() << "], "
-            << time_diff_ms << " ms.";
+      // ADEBUG << "after task[" << task->Name()
+      //        << "]: " << reference_line_info.PathSpeedDebugString();
+      // ADEBUG << task->Name() << " time spend: " << time_diff_ms << " ms.";
+      // AINFO << "Planning Perf: task name [" << task->Name() << "], "
+      //       << time_diff_ms << " ms.";
       RecordDebugInfo(&reference_line_info, task->Name(), time_diff_ms);
 
       if (!ret.ok()) {
@@ -140,11 +142,12 @@ StageResult Stage::ExecuteTaskOnReferenceLine(
       }
     }
     // Generate fallback trajectory in case of task error.
+    // 如果任务执行结果 ret 不成功（即任务执行失败），调用回退任务 fallback_task_ 的 Execute 方法，以便生成一个替代轨迹。
     if (!ret.ok()) {
       fallback_task_->Execute(frame, &reference_line_info);
     }
     DiscretizedTrajectory trajectory;
-    if (!reference_line_info.CombinePathAndSpeedProfile(
+    if (!reference_line_info.CombinePathAndSpeedProfile(  //合并路径和速度规划
             planning_start_point.relative_time(),
             planning_start_point.path_point().s(), &trajectory)) {
       AERROR << "Fail to aggregate planning trajectory."

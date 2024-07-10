@@ -58,10 +58,10 @@ bool BareIntersectionUnprotectedScenario::Init(
 
 bool BareIntersectionUnprotectedScenario::IsTransferable(
     const Scenario* const other_scenario, const Frame& frame) {
-  if (!frame.local_view().planning_command->has_lane_follow_command()) {
+  if (!frame.local_view().planning_command->has_lane_follow_command()) { // 当前command为lane_follow_command
     return false;
   }
-  if (other_scenario == nullptr || frame.reference_line_info().empty()) {
+  if (other_scenario == nullptr || frame.reference_line_info().empty()) { // 参考线不为空
     return false;
   }
   const auto& reference_line_info = frame.reference_line_info().front();
@@ -70,12 +70,13 @@ bool BareIntersectionUnprotectedScenario::IsTransferable(
   hdmap::PathOverlap* pnc_junction_overlap = nullptr;
   hdmap::PathOverlap* traffic_sign_overlap = nullptr;
   // note: first_encountered_overlaps already sorted
-  if (first_encountered_overlaps.empty()) {
+  if (first_encountered_overlaps.empty()) { // 排序后遇到的overlap不为空
     return false;
   }
 
+  // 优先考虑交通标志重叠区域，其次是 PNC 交叉口重叠区域。
   for (const auto& overlap : first_encountered_overlaps) {
-    if ((overlap.first == ReferenceLineInfo::SIGNAL ||
+    if ((overlap.first == ReferenceLineInfo::SIGNAL || // 检查信号灯、停车标志或让行标志的重叠区域：
          overlap.first == ReferenceLineInfo::STOP_SIGN ||
          overlap.first == ReferenceLineInfo::YIELD_SIGN) &&
         traffic_sign_overlap == nullptr) {
@@ -91,7 +92,7 @@ bool BareIntersectionUnprotectedScenario::IsTransferable(
     static constexpr double kJunctionDelta = 10.0;
     double s_diff = std::fabs(traffic_sign_overlap->start_s -
                               pnc_junction_overlap->start_s);
-    if (s_diff >= kJunctionDelta) {
+    if (s_diff >= kJunctionDelta) {   // 确定忽略哪个重叠：
       if (pnc_junction_overlap->start_s > traffic_sign_overlap->start_s) {
         pnc_junction_overlap = nullptr;
       } else {
@@ -104,20 +105,20 @@ bool BareIntersectionUnprotectedScenario::IsTransferable(
     return false;
   }
 
-  if (reference_line_info.GetIntersectionRightofWayStatus(
+  if (reference_line_info.GetIntersectionRightofWayStatus(  // 判断是否转向，转向就没有优先权 不进入场景
           *pnc_junction_overlap)) {
     return false;
   }
 
-  const double adc_front_edge_s = reference_line_info.AdcSlBoundary().end_s();
-  const double adc_distance_to_pnc_junction =
+  const double adc_front_edge_s = reference_line_info.AdcSlBoundary().end_s(); // 车头s
+  const double adc_distance_to_pnc_junction =  // 车头到路口距离
       pnc_junction_overlap->start_s - adc_front_edge_s;
   ADEBUG << "adc_distance_to_pnc_junction[" << adc_distance_to_pnc_junction
          << "] pnc_junction[" << pnc_junction_overlap->object_id
          << "] pnc_junction_overlap_start_s[" << pnc_junction_overlap->start_s
          << "]";
 
-  const bool bare_junction_scenario =
+  const bool bare_junction_scenario =    // 判断s范围进入场景
       (adc_distance_to_pnc_junction > 0.0 &&
        adc_distance_to_pnc_junction <=
            context_.scenario_config

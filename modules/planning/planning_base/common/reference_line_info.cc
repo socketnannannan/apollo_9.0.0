@@ -975,10 +975,11 @@ void ReferenceLineInfo::MakeEStopDecision(
     object_decision->add_object_decision()->mutable_avoid();
   }
 }
-
+// 获取车辆在路径上的转向类型。其实现如下：
 hdmap::Lane::LaneTurn ReferenceLineInfo::GetPathTurnType(const double s) const {
   const double forward_buffer = 20.0;
   double route_s = 0.0;
+  // 前视 s+20m 去判断转向类型
   for (const auto& seg : Lanes()) {
     if (route_s > s + forward_buffer) {
       break;
@@ -997,7 +998,7 @@ hdmap::Lane::LaneTurn ReferenceLineInfo::GetPathTurnType(const double s) const {
 
   return hdmap::Lane::NO_TURN;
 }
-
+// 判断车辆在进入路口时是否需要转向。如果需要转向（如左转、右转或掉头），则没有优先通行权，函数返回 false
 bool ReferenceLineInfo::GetIntersectionRightofWayStatus(
     const hdmap::PathOverlap& pnc_junction_overlap) const {
   if (GetPathTurnType(pnc_junction_overlap.start_s) != hdmap::Lane::NO_TURN) {

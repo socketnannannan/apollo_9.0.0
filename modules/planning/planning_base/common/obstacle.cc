@@ -645,15 +645,15 @@ bool Obstacle::HasNonIgnoreDecision() const {
 
 void Obstacle::AddLongitudinalDecision(const std::string& decider_tag,
                                        const ObjectDecisionType& decision) {
-  DCHECK(IsLongitudinalDecision(decision))
-      << "Decision: " << decision.ShortDebugString()
-      << " is not a longitudinal decision";
+  // DCHECK(IsLongitudinalDecision(decision))
+  //     << "Decision: " << decision.ShortDebugString()
+  //     << " is not a longitudinal decision";
   longitudinal_decision_ =
       MergeLongitudinalDecision(longitudinal_decision_, decision);
-  ADEBUG << decider_tag << " added obstacle " << Id()
-         << " longitudinal decision: " << decision.ShortDebugString()
-         << ". The merged decision is: "
-         << longitudinal_decision_.ShortDebugString();
+  // ADEBUG << decider_tag << " added obstacle " << Id()
+  //        << " longitudinal decision: " << decision.ShortDebugString()
+  //        << ". The merged decision is: "
+  //        << longitudinal_decision_.ShortDebugString();
   decisions_.push_back(decision);
   decider_tags_.push_back(decider_tag);
 }

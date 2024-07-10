@@ -27,16 +27,16 @@
 namespace apollo {
 namespace planning {
 
-StageResult BareIntersectionUnprotectedStageIntersectionCruise::Process(
+StageResult BareIntersectionUnprotectedStageIntersectionCruise::Process( // 该阶段用于主车通过路口
     const common::TrajectoryPoint& planning_init_point, Frame* frame) {
   ADEBUG << "stage: IntersectionCruise";
   CHECK_NOTNULL(frame);
 
-  StageResult result = ExecuteTaskOnReferenceLine(planning_init_point, frame);
+  StageResult result = ExecuteTaskOnReferenceLine(planning_init_point, frame); // 按照该stage配置的task列表，依次进行规划
   if (result.HasError()) {
     AERROR << "StopSignUnprotectedStageIntersectionCruise plan error";
   }
-
+  // 检查主车是否通过路口。如果通过，进入FinishStage，结束当前Stage
   bool stage_done = CheckDone(*frame, injector_->planning_context(), false);
   if (stage_done) {
     return FinishStage();

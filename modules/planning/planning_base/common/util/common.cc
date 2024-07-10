@@ -34,7 +34,7 @@ int BuildStopDecision(const std::string& stop_wall_id, const double stop_line_s,
   CHECK_NOTNULL(frame);
   CHECK_NOTNULL(reference_line_info);
 
-  // check
+  // check  停止点在规划路径内
   const auto& reference_line = reference_line_info->reference_line();
   if (!WithinBound(0.0, reference_line.Length(), stop_line_s)) {
     AERROR << "stop_line_s[" << stop_line_s << "] is not on reference line";
@@ -48,7 +48,7 @@ int BuildStopDecision(const std::string& stop_wall_id, const double stop_line_s,
     AERROR << "Failed to create obstacle [" << stop_wall_id << "]";
     return -1;
   }
-  const Obstacle* stop_wall = reference_line_info->AddObstacle(obstacle);
+  const Obstacle* stop_wall = reference_line_info->AddObstacle(obstacle); //安全的添加虚拟障碍物
   if (!stop_wall) {
     AERROR << "Failed to add obstacle[" << stop_wall_id << "]";
     return -1;
@@ -74,7 +74,7 @@ int BuildStopDecision(const std::string& stop_wall_id, const double stop_line_s,
   }
 
   auto* path_decision = reference_line_info->path_decision();
-  path_decision->AddLongitudinalDecision(decision_tag, stop_wall->Id(), stop);
+  path_decision->AddLongitudinalDecision(decision_tag, stop_wall->Id(), stop); // 添加纵向决策
 
   return 0;
 }

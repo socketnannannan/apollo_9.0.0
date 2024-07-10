@@ -371,7 +371,8 @@ STPoint STBoundary::upper_right_point() const {
   return upper_points_.back();
 }
 
-STPoint STBoundary::bottom_left_point() const {
+STPoint STBoundary::
+bottom_left_point() const {
   DCHECK(!lower_points_.empty()) << "StBoundary has zero points.";
   return lower_points_.front();
 }
