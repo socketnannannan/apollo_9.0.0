@@ -36,7 +36,8 @@ using apollo::relative_map::MapMsg;
 using apollo::routing::RoutingRequest;
 using apollo::routing::RoutingResponse;
 using apollo::storytelling::Stories;
-
+// planning初始化在PlanningComponent::Init函数中进行，在这里创建PlanningBase对象（默认OnLanePlanning），
+// 它是轨迹规划的主体；除此之外，还需要创建planning其他输入消息的订阅对象，以及输出的消息发布对象：
 bool PlanningComponent::Init() {
   injector_ = std::make_shared<DependencyInjector>();
 
@@ -115,7 +116,10 @@ bool PlanningComponent::Init() {
       FLAGS_planning_command_status);
   return true;
 }
-
+// PlanningComponent是planning模块的入口，它是一个由topic触发的Component，接口函数是
+// 当接收到新的 PredictionObstacles 数据时，会触发执行Proc函数，并获取最新的Chassis车辆信息
+// 和 LocalizationEstimate 车辆定位数据进行处理，计算planning轨迹
+// 场景的运行也是在 apollo::planning::PlanningComponent::Proc 函数中调用
 bool PlanningComponent::Proc(
     const std::shared_ptr<prediction::PredictionObstacles>&
         prediction_obstacles,
@@ -124,10 +128,10 @@ bool PlanningComponent::Proc(
         localization_estimate) {
   ACHECK(prediction_obstacles != nullptr);
 
-  // check and process possible rerouting request
+  // check and process possible rerouting request// 检查并处理可能的重新路由请求
   CheckRerouting();
 
-  // process fused input data
+  // process fused input data// 处理融合的输入数据
   local_view_.prediction_obstacles = prediction_obstacles;
   local_view_.chassis = chassis;
   local_view_.localization_estimate = localization_estimate;
@@ -168,7 +172,7 @@ bool PlanningComponent::Proc(
     AINFO << "Input check failed";
     return false;
   }
-
+  // 在线学习模式的数据处理
   if (config_.learning_mode() != PlanningConfig::NO_LEARNING) {
     // data process for online training
     message_process_.OnChassis(*local_view_.chassis);
@@ -182,7 +186,7 @@ bool PlanningComponent::Proc(
     message_process_.OnLocalization(*local_view_.localization_estimate);
   }
 
-  // publish learning data frame for RL test
+  // publish learning data frame for RL test// 发布强化学习测试的学习数据帧
   if (config_.learning_mode() == PlanningConfig::RL_TEST) {
     PlanningLearningData planning_learning_data;
     LearningDataFrame* learning_data_frame =
@@ -198,20 +202,20 @@ bool PlanningComponent::Proc(
     }
     return true;
   }
-
+  // 执行一次规划
   ADCTrajectory adc_trajectory_pb;
-  planning_base_->RunOnce(local_view_, &adc_trajectory_pb);
+  planning_base_->RunOnce(local_view_, &adc_trajectory_pb);  //真正一次规划入口
   auto start_time = adc_trajectory_pb.header().timestamp_sec();
   common::util::FillHeader(node_->Name(), &adc_trajectory_pb);
 
-  // modify trajectory relative time due to the timestamp change in header
+  // modify trajectory relative time due to the timestamp change in header// 根据头部时间戳的变化修改轨迹的相对时间
   const double dt = start_time - adc_trajectory_pb.header().timestamp_sec();
   for (auto& p : *adc_trajectory_pb.mutable_trajectory_point()) {
     p.set_relative_time(p.relative_time() + dt);
   }
   planning_writer_->Write(adc_trajectory_pb);
 
-  // Send command execution feedback.
+  // Send command execution feedback.// 发送命令执行反馈
   // Error occured while executing the command.
   external_command::CommandStatus command_status;
   common::util::FillHeader(node_->Name(), &command_status);
@@ -234,7 +238,7 @@ bool PlanningComponent::Proc(
   }
   command_status_writer_->Write(command_status);
 
-  // record in history
+  // record in history// 记录到历史记录中
   auto* history = injector_->history();
   history->Add(adc_trajectory_pb);
 

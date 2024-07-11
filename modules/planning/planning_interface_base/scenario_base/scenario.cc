@@ -82,7 +82,10 @@ bool Scenario::Init(std::shared_ptr<DependencyInjector> injector,
   }
   return true;
 }
-
+// 初始化并处理场景的各个阶段；
+// 根据每个阶段的处理结果更新场景的状态；
+// 根据阶段的状态切换到下一个阶段或者标记场景处理完成。
+ //依次执行场景内每个stage
 ScenarioResult Scenario::Process(
     const common::TrajectoryPoint& planning_init_point, Frame* frame) {
   if (current_stage_ == nullptr) {
@@ -100,7 +103,7 @@ ScenarioResult Scenario::Process(
     scenario_result_.SetScenarioStatus(ScenarioStatusType::STATUS_DONE);
     return scenario_result_;
   }
-  auto ret = current_stage_->Process(planning_init_point, frame);
+  auto ret = current_stage_->Process(planning_init_point, frame);   //依次执行场景内每个stage
   scenario_result_.SetStageResult(ret);
   switch (ret.GetStageStatus()) {
     case StageStatusType::ERROR: {

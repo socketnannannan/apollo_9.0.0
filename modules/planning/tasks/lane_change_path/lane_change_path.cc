@@ -217,7 +217,9 @@ bool LaneChangePath::AssessPath(std::vector<PathData>* candidate_path_data,
   RecordDebugInfo(*final_path, final_path->path_label(), reference_line_info_);
   return true;
 }
-
+// 根据车辆状态、参考线数量以及上一帧车辆是否处于换道状态判断是否换道。
+// UpdateLaneChangeStatus遍历所有动态障碍物，通过判断目标行驶方向，
+// 根据自车与目标之间速度，设置相应的安全距离，通过HysteresisFilter判断换道是否安全。
 void LaneChangePath::UpdateLaneChangeStatus() {
   std::string change_lane_id;
   auto* prev_status = injector_->planning_context()

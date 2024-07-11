@@ -34,16 +34,17 @@ Status PublicRoadPlanner::Init(
   return Status::OK();
 }
 
-Status PublicRoadPlanner::Plan(const TrajectoryPoint& planning_start_point,
+//规划入口
+Status PublicRoadPlanner::Plan(const TrajectoryPoint& planning_start_point, 
                                Frame* frame,
                                ADCTrajectory* ptr_computed_trajectory) {
-  scenario_manager_.Update(planning_start_point, frame);
+  scenario_manager_.Update(planning_start_point, frame);   //场景更新切换
   scenario_ = scenario_manager_.mutable_scenario();
   if (!scenario_) {
     return Status(apollo::common::ErrorCode::PLANNING_ERROR,
                   "Unknown Scenario");
   }
-  auto result = scenario_->Process(planning_start_point, frame);
+  auto result = scenario_->Process(planning_start_point, frame); //依次执行场景内每个stage
 
   if (FLAGS_enable_record_debug) {
     auto scenario_debug = ptr_computed_trajectory->mutable_debug()

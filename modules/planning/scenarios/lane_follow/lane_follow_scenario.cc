@@ -27,14 +27,15 @@ namespace apollo {
 namespace planning {
 
 bool LaneFollowScenario::IsTransferable(const Scenario* other_scenario,
-                                        const Frame& frame) {
+                                        const Frame& frame) {\
+  // 是否存在车道跟随命令。如果不存在，函数返回false，不能转移
   if (!frame.local_view().planning_command->has_lane_follow_command()) {
     return false;
   }
   if (frame.reference_line_info().empty()) {
     return false;
   }
-  if (other_scenario == nullptr) {
+  if (other_scenario == nullptr) { // other_scenario是否为空。如果为空，返回true，可以转移
     return true;
   }
   return true;

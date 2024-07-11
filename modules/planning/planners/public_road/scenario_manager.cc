@@ -52,18 +52,21 @@ bool ScenarioManager::Init(const std::shared_ptr<DependencyInjector>& injector,
   init_ = true;
   return true;
 }
-
+// 场景更新切换在 apollo::planning::ScenarioManager::Update 中进行，
+// 它对场景列表中的所有场景遍历，调用场景子类的重写函数 IsTransferable ，
+// 用于判断当前环境是否能切入到这个场景子类中。因为场景列表优先级从高到低，
+// 如果遍历时遇到第一个可以切入的场景，后面的场景不需要再判断，直接使用这个场景作为本次运行周期的当前场景。
 void ScenarioManager::Update(const common::TrajectoryPoint& ego_point,
                              Frame* frame) {
   CHECK_NOTNULL(frame);
-  for (auto scenario : scenario_list_) {
+  for (auto scenario : scenario_list_) {  // 对场景列表中的所有场景遍历
     if (current_scenario_.get() == scenario.get() &&
         current_scenario_->GetStatus() ==
             ScenarioStatusType::STATUS_PROCESSING) {
       // The previous scenario has higher priority
       return;
     }
-    if (scenario->IsTransferable(current_scenario_.get(), *frame)) {
+    if (scenario->IsTransferable(current_scenario_.get(), *frame)) {  //判断当前环境是否能切入到这个场景子类中
       current_scenario_->Exit(frame);
       AINFO << "switch scenario from" << current_scenario_->Name() << " to "
             << scenario->Name();

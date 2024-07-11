@@ -22,13 +22,17 @@ namespace apollo {
 namespace prediction {
 
 void ScenarioManager::Run(ContainerManager* container_manager) {
+    // 提取环境特征
   auto environment_features =
       FeatureExtractor::ExtractEnvironmentFeatures(container_manager);
 
+  // 分析提取的特征，确定场景特征
   auto ptr_scenario_features = ScenarioAnalyzer::Analyze(environment_features);
 
+  // 设置当前场景
   current_scenario_ = ptr_scenario_features->scenario();
 
+  // TODO: 包括车道和路口过滤器的其他功能
   // TODO(all) other functionalities including lane, junction filters
 }
 

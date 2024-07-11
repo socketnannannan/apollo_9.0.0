@@ -100,24 +100,25 @@ StageResult LaneFollowStage::Process(
     ADEBUG << "No: [" << count << "] Reference Line.";
     ADEBUG << "IsChangeLanePath: " << reference_line_info.IsChangeLanePath();
 
+    // 如果已经存在可驾驶的参考线路，那么将当前线路设置为不可驾驶并退出循环。这避免了重复处理可驾驶线路
     if (has_drivable_reference_line) {
       reference_line_info.SetDrivable(false);
       break;
     }
-
+    // 对于每一条参考线路，调用PlanOnReferenceLine方法来进行规划。
     result =
         PlanOnReferenceLine(planning_start_point, frame, &reference_line_info);
 
     if (!result.HasError()) {
-      if (!reference_line_info.IsChangeLanePath()) {
+      if (!reference_line_info.IsChangeLanePath()) {       // 不变道
         ADEBUG << "reference line is NOT lane change ref.";
         has_drivable_reference_line = true;
         continue;
       }
-      if (reference_line_info.Cost() < kStraightForwardLineCost) {
+      if (reference_line_info.Cost() < kStraightForwardLineCost) { //变道判断cost  kStraightForwardLineCost：不进行车道变更的代价
         // If the path and speed optimization succeed on target lane while
         // under smart lane-change or IsClearToChangeLane under older version
-        has_drivable_reference_line = true;
+        has_drivable_reference_line = true;  //参考线路标记为可驾驶的
         reference_line_info.SetDrivable(true);
       } else {
         reference_line_info.SetDrivable(false);
@@ -133,10 +134,10 @@ StageResult LaneFollowStage::Process(
              : result.SetStageStatus(StageStatusType::ERROR);
 }
 
-StageResult LaneFollowStage::PlanOnReferenceLine(
+StageResult LaneFollowStage::PlanOnReferenceLine( // 生成每一个参考线对应的代价，用于后续判断。
     const TrajectoryPoint& planning_start_point, Frame* frame,
     ReferenceLineInfo* reference_line_info) {
-  if (!reference_line_info->IsChangeLanePath()) {
+  if (!reference_line_info->IsChangeLanePath()) {  // 非变道轨迹直接设置cost为kStraightForwardLineCost 10
     reference_line_info->AddCost(kStraightForwardLineCost);
   }
   ADEBUG << "planning start point:" << planning_start_point.DebugString();
@@ -151,7 +152,7 @@ StageResult LaneFollowStage::PlanOnReferenceLine(
             std::chrono::system_clock::now().time_since_epoch())
             .count();
 
-    ret.SetTaskStatus(task->Execute(frame, reference_line_info));
+    ret.SetTaskStatus(task->Execute(frame, reference_line_info));  // 按照pipeline.pb.txt里面的task列表执行
 
     const double end_timestamp = Clock::NowInSeconds();
     const double time_diff_ms = (end_timestamp - start_timestamp) * 1000;
@@ -186,7 +187,10 @@ StageResult LaneFollowStage::PlanOnReferenceLine(
   RecordObstacleDebugInfo(reference_line_info);
 
   // check path and speed results for path or speed fallback
+  // 设置轨迹类型为正常
   reference_line_info->set_trajectory_type(ADCTrajectory::NORMAL);
+
+  // 如果任务执行结果有错误，则执行备用任务
   if (ret.IsTaskError()) {
     fallback_task_->Execute(frame, reference_line_info);
   }
@@ -200,7 +204,7 @@ StageResult LaneFollowStage::PlanOnReferenceLine(
     return ret.SetStageStatus(StageStatusType::ERROR, msg);
   }
 
-  // determine if there is a destination on reference line.
+  // determine if there is a destination on reference line.确定参考线上是否有目的地。
   double dest_stop_s = -1.0;
   for (const auto* obstacle :
        reference_line_info->path_decision()->obstacles().Items()) {
