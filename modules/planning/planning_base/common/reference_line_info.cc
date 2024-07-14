@@ -506,7 +506,7 @@ SpeedData* ReferenceLineInfo::mutable_speed_data() { return &speed_data_; }
 const RSSInfo& ReferenceLineInfo::rss_info() const { return rss_info_; }
 
 RSSInfo* ReferenceLineInfo::mutable_rss_info() { return &rss_info_; }
-
+// 生成轨迹
 bool ReferenceLineInfo::CombinePathAndSpeedProfile(
     const double relative_time, const double start_s,
     DiscretizedTrajectory* ptr_discretized_trajectory) {
@@ -527,7 +527,7 @@ bool ReferenceLineInfo::CombinePathAndSpeedProfile(
     return false;
   }
 
-  for (double cur_rel_time = 0.0; cur_rel_time < speed_data_.TotalTime();
+  for (double cur_rel_time = 0.0; cur_rel_time < speed_data_.TotalTime(); // 根据speed_data_中记录的总时间和间隔以确定需要在轨迹中添加多少个点
        cur_rel_time += (cur_rel_time < kDenseTimeSec ? kDenseTimeResoltuion
                                                      : kSparseTimeResolution)) {
     common::SpeedPoint speed_point;
@@ -539,16 +539,16 @@ bool ReferenceLineInfo::CombinePathAndSpeedProfile(
     if (speed_point.s() > path_data_.discretized_path().Length()) {
       break;
     }
-    common::PathPoint path_point =
+    common::PathPoint path_point = // 根据path_data_中的数据获取相应的点以确定轨迹点的位置。
         path_data_.GetPathPointWithPathS(speed_point.s());
     path_point.set_s(path_point.s() + start_s);
 
-    common::TrajectoryPoint trajectory_point;
+    common::TrajectoryPoint trajectory_point;  // 创建一个轨迹点TrajectoryPoint并设置位置和速度，加速度和相对时间等信息。
     trajectory_point.mutable_path_point()->CopyFrom(path_point);
     trajectory_point.set_v(speed_point.v());
     trajectory_point.set_a(speed_point.a());
     trajectory_point.set_relative_time(speed_point.t() + relative_time);
-    ptr_discretized_trajectory->AppendTrajectoryPoint(trajectory_point);
+    ptr_discretized_trajectory->AppendTrajectoryPoint(trajectory_point);//在轨迹中添加一个轨迹点。
   }
   if (path_data_.is_reverse_path()) {
     std::for_each(ptr_discretized_trajectory->begin(),

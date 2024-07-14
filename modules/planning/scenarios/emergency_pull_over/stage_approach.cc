@@ -45,14 +45,14 @@ StageResult EmergencyPullOverStageApproach::Process(
   const auto& scenario_config = scenario_context->scenario_config;
 
   auto& reference_line_info = frame->mutable_reference_line_info()->front();
-  reference_line_info.LimitCruiseSpeed(
+  reference_line_info.LimitCruiseSpeed(  // 主车限速调整
       scenario_context->target_slow_down_speed);
-  // set vehicle signal
+  // set vehicle signal   打开转向灯表明靠边临时停车，
   reference_line_info.SetTurnSignal(VehicleSignal::TURN_RIGHT);
 
   double stop_line_s = 0.0;
 
-  // add a stop fence
+  // add a stop fence  构建虚拟障碍物 停止墙
   const auto& pull_over_status =
       injector_->planning_context()->planning_status().pull_over();
   if (pull_over_status.has_position() && pull_over_status.position().has_x() &&
@@ -60,7 +60,7 @@ StageResult EmergencyPullOverStageApproach::Process(
     const auto& reference_line = reference_line_info.reference_line();
     common::SLPoint pull_over_sl;
     reference_line.XYToSL(pull_over_status.position(), &pull_over_sl);
-    const double stop_distance = scenario_config.stop_distance();
+    const double stop_distance = scenario_config.stop_distance();  // 1.5
     stop_line_s =
         pull_over_sl.s() + stop_distance +
         VehicleConfigHelper::GetConfig().vehicle_param().front_edge_to_center();

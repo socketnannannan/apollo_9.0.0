@@ -43,18 +43,21 @@ Stage::Stage()
 bool Stage::Init(const StagePipeline& config,
                  const std::shared_ptr<DependencyInjector>& injector,
                  const std::string& config_dir, void* context) {
+  // // 保存传入的配置、依赖注入器、阶段名称和上下文到类成员变量
   pipeline_config_ = config;
   next_stage_ = config.name();
   injector_ = injector;
   name_ = config.name();
   context_ = context;
+  // 设置当前阶段类型到 planning context 中
   injector_->planning_context()
       ->mutable_planning_status()
       ->mutable_scenario()
       ->set_stage_type(name_);
+  // 获取阶段对应的路径名并设置任务配置目录
   std::string path_name = ConfigUtil::TransformToPathName(name_);
   std::string task_config_dir = config_dir + "/" + path_name;
-  // Load task plugin.
+  // Load task plugin.// 加载任务插件
   for (int i = 0; i < pipeline_config_.task_size(); ++i) {
     auto task = pipeline_config_.task(i);
     auto task_type = task.type();
@@ -74,12 +77,15 @@ bool Stage::Init(const StagePipeline& config,
   }
   // Load trajectory fallback task.
   // If fallback task is not set, use "FastStopTrajectoryFallback" as default.
+  // 加载轨迹回退任务
+  // 如果没有设置回退任务，使用默认的 "FastStopTrajectoryFallback"
   std::string fallback_task_type = "FastStopTrajectoryFallback";
   std::string fallback_task_name = "FAST_STOP_TRAJECTORY_FALLBACK";
   if (pipeline_config_.has_fallback_task()) {
     fallback_task_type = pipeline_config_.fallback_task().type();
     fallback_task_name = pipeline_config_.fallback_task().name();
   }
+  // 使用插件管理器创建回退任务实例
   fallback_task_ =
       apollo::cyber::plugin_manager::PluginManager::Instance()
           ->CreateInstance<Task>(
@@ -123,7 +129,7 @@ StageResult Stage::ExecuteTaskOnReferenceLine(
     for (auto task : task_list_) {
       const double start_timestamp = Clock::NowInSeconds();
 
-      ret = task->Execute(frame, &reference_line_info);
+      ret = task->Execute(frame, &reference_line_info);  // 依照task列表执行
 
       const double end_timestamp = Clock::NowInSeconds();
       const double time_diff_ms = (end_timestamp - start_timestamp) * 1000;

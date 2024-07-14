@@ -369,9 +369,9 @@ class Path {
   std::vector<LaneSegment> lane_segments_;
   std::vector<double> lane_accumulated_s_;
   std::vector<LaneSegment> lane_segments_to_next_point_;
-  std::vector<common::math::Vec2d> unit_directions_;
+  std::vector<common::math::Vec2d> unit_directions_;// 每个索引朝向
   double length_ = 0.0;
-  std::vector<double> accumulated_s_;
+  std::vector<double> accumulated_s_; // 累计的s值，但是每相邻两个s差可能不相等
   std::vector<common::math::LineSegment2d> segments_;
   bool use_path_approximation_ = false;
   PathApproximation approximation_;

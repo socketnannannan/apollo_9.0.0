@@ -301,21 +301,24 @@ std::vector<ReferencePoint> ReferenceLine::GetReferencePoints(
 }
 
 ReferencePoint ReferenceLine::GetReferencePoint(const double s) const {
-  const auto& accumulated_s = map_path_.accumulated_s();
-  if (s < accumulated_s.front() - 1e-2) {
+  // reference_points_其实是从map_path_得到，具体见ReferenceLine的构造函数。所以这两个数据的作用其实是一样的。
+  const auto& accumulated_s = map_path_.accumulated_s();   // 获取累积距离
+  // 检查警告s值大于 or 小于参考线
+  if (s < accumulated_s.front() - 1e-2) { // 如果给定的 s 值小于参考线的起点，发出警告并返回第一个参考点
     AWARN << "The requested s: " << s << " < 0.";
     return reference_points_.front();
   }
-  if (s > accumulated_s.back() + 1e-2) {
+  if (s > accumulated_s.back() + 1e-2) { // 如果给定的 s 值大于参考线的终点，发出警告并返回最后一个参考点
     AWARN << "The requested s: " << s
           << " > reference line length: " << accumulated_s.back();
     return reference_points_.back();
   }
-
+  // 获取给定 s 值在map_path_对应的插值索引  和s与索引点s的误差
   auto interpolate_index = map_path_.GetIndexFromS(s);
-
+  // 获取插值索引对应的参考点
   size_t index = interpolate_index.id;
   size_t next_index = index + 1;
+  // 确保 next_index 不超过参考点的数量
   if (next_index >= reference_points_.size()) {
     next_index = reference_points_.size() - 1;
   }
@@ -445,19 +448,19 @@ bool ReferenceLine::XYToSL(const double heading,
   sl_point->set_l(l);
   return true;
 }
-
+// 插值算法
 ReferencePoint ReferenceLine::InterpolateWithMatchedIndex(
     const ReferencePoint& p0, const double s0, const ReferencePoint& p1,
     const double s1, const InterpolatedIndex& index) const {
-  if (std::fabs(s0 - s1) < common::math::kMathEpsilon) {
+  if (std::fabs(s0 - s1) < common::math::kMathEpsilon) {  // 两点很近，不需要插值
     return p0;
   }
-  double s = s0 + index.offset;
-  DCHECK_LE(s0 - 1.0e-6, s) << "s: " << s << " is less than s0 : " << s0;
+  double s = s0 + index.offset;  // 
+  DCHECK_LE(s0 - 1.0e-6, s) << "s: " << s << " is less than s0 : " << s0; // 检查插值位置 s 是否在合法范围内：
   DCHECK_LE(s, s1 + 1.0e-6) << "s: " << s << " is larger than s1: " << s1;
 
   auto map_path_point = map_path_.GetSmoothPoint(index);
-  const double kappa = common::math::lerp(p0.kappa(), s0, p1.kappa(), s1, s);
+  const double kappa = common::math::lerp(p0.kappa(), s0, p1.kappa(), s1, s);   //线性插值
   const double dkappa = common::math::lerp(p0.dkappa(), s0, p1.dkappa(), s1, s);
 
   return ReferencePoint(map_path_point, kappa, dkappa);

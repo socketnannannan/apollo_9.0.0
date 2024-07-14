@@ -143,7 +143,7 @@ void Frame::UpdateReferenceLinePriority(
     }
   }
 }
-
+// ReferenceLine主要是静态数据（路径点和限速）的存储，而ReferenceLineInfo中会包含动态信息（障碍物）和更多逻辑。
 bool Frame::CreateReferenceLineInfo(
     const std::list<ReferenceLine> &reference_lines,
     const std::list<hdmap::RouteSegments> &segments) {

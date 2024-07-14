@@ -42,9 +42,10 @@ bool Rerouting::Init(const std::string& name,
   // Load the config this task.
   return TrafficRule::LoadConfig<ReroutingConfig>(&config_);
 }
-
+// 处理自动驾驶汽车在换道失败时的重新规划路线的逻辑  需要看看方案（cjh）
 bool Rerouting::ChangeLaneFailRerouting() {
   static constexpr double kRerouteThresholdToEnd = 20.0;
+  // 检查车辆是否已经到达目的地或距离目的地非常近。如果是，则不需要重新规划路线，直接返回 true。
   for (const auto& ref_line_info : frame_->reference_line_info()) {
     if (ref_line_info.ReachedDestination() ||
         ref_line_info.SDistanceToDestination() < kRerouteThresholdToEnd) {

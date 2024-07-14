@@ -350,7 +350,7 @@ Path::Path(std::vector<MapPathPoint>&& path_points,
     approximation_ = PathApproximation(*this, max_approximation_error);
   }
 }
-
+// 初始化得到的路径，将其存入各种结构中待使用
 void Path::Init() {
   InitPoints();
   InitLaneSegments();
@@ -379,7 +379,7 @@ void Path::InitPoints() {
     } else {
       segments_.emplace_back(path_points_[i], path_points_[i + 1]);
       heading = path_points_[i + 1] - path_points_[i];
-      float heading_length = heading.Length();
+      float heading_length = heading.Length();  // 每次heading_length可能不一样
       // TODO(All): use heading.length when all adjacent lanes are guarantee to
       // be connected.
       s += heading_length;
@@ -484,7 +484,7 @@ void Path::InitWidth() {
   CHECK_EQ(road_left_width_.size(), num_sample_points);
   CHECK_EQ(road_right_width_.size(), num_sample_points);
 }
-
+// 根据路径的累积距离 (accumulated_s_)以分辨率kSampleDistance 生成一个索引映射 (last_point_index_)
 void Path::InitPointIndex() {
   last_point_index_.clear();
   last_point_index_.reserve(num_sample_points_);
@@ -587,13 +587,15 @@ void Path::InitOverlaps() {
                  &parking_space_overlaps_);
 }
 
+
+// 由参考线上的索引找到对应参考线上点，新建路径点填充s对应参考线上插值结果（x,y,s,heading,l,lane_segment.lane）作为平滑点返回值
 MapPathPoint Path::GetSmoothPoint(const InterpolatedIndex& index) const {
   CHECK_GE(index.id, 0);
   CHECK_LT(index.id, num_points_);
 
-  const MapPathPoint& ref_point = path_points_[index.id];
+  const MapPathPoint& ref_point = path_points_[index.id];  //参考点
   if (std::abs(index.offset) > kMathEpsilon) {
-    const Vec2d delta = unit_directions_[index.id] * index.offset;
+    const Vec2d delta = unit_directions_[index.id] * index.offset; // 计算偏移后的坐标增量 delta，并基于增量计算新路径点的坐标。
     MapPathPoint point({ref_point.x() + delta.x(), ref_point.y() + delta.y()},
                        ref_point.heading());
     if (index.id < num_segments_ && !ref_point.lane_waypoints().empty()) {
@@ -614,7 +616,7 @@ MapPathPoint Path::GetSmoothPoint(const InterpolatedIndex& index) const {
     if (point.lane_waypoints().empty() && !ref_point.lane_waypoints().empty()) {
       point.add_lane_waypoint(ref_point.lane_waypoints()[0]);
     }
-    return point;
+    return point;  // 返回计算出的新路径点 point
   } else {
     return ref_point;
   }
@@ -635,6 +637,7 @@ double Path::GetSFromIndex(const InterpolatedIndex& index) const {
 }
 
 InterpolatedIndex Path::GetIndexFromS(double s) const {
+  // 处理s在首位位置情况
   if (s <= 0.0) {
     return {0, 0.0};
   }
@@ -642,12 +645,14 @@ InterpolatedIndex Path::GetIndexFromS(double s) const {
   if (s >= length_) {
     return {num_points_ - 1, 0.0};
   }
+  // 得到s值对应比例索引并检查
   const int sample_id = static_cast<int>(s / kSampleDistance);
   if (sample_id >= num_sample_points_) {
     return {num_points_ - 1, 0.0};
   }
+  // 二分查找
   const int next_sample_id = sample_id + 1;
-  int low = last_point_index_[sample_id];
+  int low = last_point_index_[sample_id]; //根据对应比例索引找到last_point_index_对应的索引映射
   int high = (next_sample_id < num_sample_points_
                   ? std::min(num_points_, last_point_index_[next_sample_id] + 1)
                   : num_points_);

@@ -598,7 +598,7 @@ Status OnLanePlanning::Plan(
                            ptr_debug);
     }
   } else {
-    const auto* best_ref_info = frame_->FindDriveReferenceLineInfo();
+    const auto* best_ref_info = frame_->FindDriveReferenceLineInfo(); // 在有多个ReferenceLineInfo的情况下，选取最合适的一条。
     const auto* target_ref_info = frame_->FindTargetReferenceLineInfo();
     if (!best_ref_info) {
       const std::string msg = "planner failed to make a driving plan";
@@ -636,7 +636,7 @@ Status OnLanePlanning::Plan(
     ptr_trajectory_pb->set_right_of_way_status(
         best_ref_info->GetRightOfWayStatus());
 
-    for (const auto& id : best_ref_info->TargetLaneId()) {
+    for (const auto& id : best_ref_info->TargetLaneId()) {  //记录ReferenceLineInfo包含的lane id。
       ptr_trajectory_pb->add_lane_id()->CopyFrom(id);
     }
 
@@ -683,7 +683,7 @@ Status OnLanePlanning::Plan(
         prev_y = reference_point.y();
       }
     }
-
+    // 将轨迹的数据格式转换成PublishableTrajectory类型并记录到last_publishable_trajectory_中。
     last_publishable_trajectory_.reset(new PublishableTrajectory(
         current_time_stamp, best_ref_info->trajectory()));
     PrintCurves debug_traj;
@@ -700,7 +700,7 @@ Status OnLanePlanning::Plan(
     last_publishable_trajectory_->PrependTrajectoryPoints(
         std::vector<TrajectoryPoint>(stitching_trajectory.begin(),
                                      stitching_trajectory.end() - 1));
-
+    // 导出成最终格式：ADCTrajectory。
     last_publishable_trajectory_->PopulateTrajectoryProtobuf(ptr_trajectory_pb);
 
     best_ref_info->ExportEngageAdvice(

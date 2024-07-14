@@ -260,7 +260,8 @@ class ReferenceLine {
    * This speed limit overrides the lane speed limit
    **/
   std::vector<SpeedLimit> speed_limit_;
-  std::vector<ReferencePoint> reference_points_;
+  // reference_points_其实是从map_path_得到，具体见ReferenceLine的构造函数。所以这两个数据的作用其实是一样的。
+  std::vector<ReferencePoint> reference_points_; 
   hdmap::Path map_path_;
   uint32_t priority_ = 0;
 };

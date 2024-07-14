@@ -101,7 +101,7 @@ void TrafficDecider::BuildPlanningTarget(
     reference_line_info->SetLatticeStopPoint(stop_point);
   }
 }
-
+// 交通规则的运用，为reference_line_info添加交通规则
 Status TrafficDecider::Execute(Frame *frame,
                                ReferenceLineInfo *reference_line_info) {
   CHECK_NOTNULL(frame);

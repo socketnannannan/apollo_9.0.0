@@ -50,7 +50,8 @@ bool EmergencyPullOverScenario::Init(
   init_ = true;
   return true;
 }
-
+// 当前帧参考线不为空
+// 接收到PadMessage命令为 PadMessage::PULL_OVER
 bool EmergencyPullOverScenario::IsTransferable(
     const Scenario* const other_scenario, const Frame& frame) {
   if (frame.reference_line_info().empty()) {

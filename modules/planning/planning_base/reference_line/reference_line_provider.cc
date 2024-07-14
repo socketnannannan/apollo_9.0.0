@@ -68,7 +68,7 @@ ReferenceLineProvider::ReferenceLineProvider(
   } else {
     relative_map_ = relative_map;
   }
-
+  // 选择参考线平滑器
   ACHECK(cyber::common::GetProtoFromFile(FLAGS_smoother_config_filename,
                                          &smoother_config_))
       << "Failed to load smoother config file "
@@ -626,7 +626,10 @@ bool ReferenceLineProvider::CreateRouteSegments(
   }
   return !segments->empty();
 }
-
+// 前面我们已经说过，PncMap对接了Routing的搜索结果。如果Routing的路线变了，这里需要进行更新。
+// 在行驶过程中，车辆的位置一直会变动（vehicle_state中包含了这个信息）。CreateRouteSegments方法中会调用pnc_map_->GetRouteSegments(vehicle_state, segments)来获取车辆当前位置周边范围的RouteSegment。如果Routing的结果需要变道，则segments将是多个，否则就是一个（直行的情况）。
+// 对于新的Routing，则根据segments生成ReferenceLine，两者的数量是对应的。并且，ReferenceLine将直接从RouteSegment里面获取到道路的点的信息。
+// 大部分情况下，在车辆行驶过程中，会不停的根据车辆的位置对ReferenceLine进行长度延伸。ReferenceLine的长度是200多米的范围（往后30米左右，往前180米或者250米左右）。
 bool ReferenceLineProvider::CreateReferenceLine(
     std::list<ReferenceLine> *reference_lines,
     std::list<hdmap::RouteSegments> *segments) {
@@ -1007,7 +1010,7 @@ bool ReferenceLineProvider::SmoothPrefixedReferenceLine(
   }
   return true;
 }
-
+// 平滑参考线
 bool ReferenceLineProvider::SmoothReferenceLine(
     const ReferenceLine &raw_reference_line, ReferenceLine *reference_line) {
   if (!FLAGS_enable_smooth_reference_line) {
@@ -1018,7 +1021,7 @@ bool ReferenceLineProvider::SmoothReferenceLine(
   std::vector<AnchorPoint> anchor_points;
   GetAnchorPoints(raw_reference_line, &anchor_points);
   smoother_->SetAnchorPoints(anchor_points);
-  if (!smoother_->Smooth(raw_reference_line, reference_line)) {
+  if (!smoother_->Smooth(raw_reference_line, reference_line)) {  // 参考线平滑入口
     AERROR << "Failed to smooth reference line with anchor points";
     return false;
   }
