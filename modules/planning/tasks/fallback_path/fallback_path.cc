@@ -39,7 +39,9 @@ bool FallbackPath::Init(const std::string& config_dir, const std::string& name,
   // Load the config this task.
   return Task::LoadConfig<FallbackPathConfig>(&config_);
 }
-
+// FallbackPath用于stage中前置task未生成路径时，生成备用路径,该task只根据车道、车辆位姿生成路径，
+// 不考虑道路障碍物信息，障碍物信息在速度规划中处理。该task通过Frame获取自车位置
+// ，通过ReferenceLineInfo获取车道信息以及参考线信息，最后将计算路径输出到ReferenceLineInfo中。
 apollo::common::Status FallbackPath::Process(
     Frame* frame, ReferenceLineInfo* reference_line_info) {
   if (!reference_line_info->path_data().Empty() ||
@@ -49,8 +51,8 @@ apollo::common::Status FallbackPath::Process(
   std::vector<PathBoundary> candidate_path_boundaries;
   std::vector<PathData> candidate_path_data;
 
-  GetStartPointSLState();
-  if (!DecidePathBounds(&candidate_path_boundaries)) {
+  GetStartPointSLState();  //拿到初始点
+  if (!DecidePathBounds(&candidate_path_boundaries)) { 
     return Status::OK();
   }
   if (!OptimizePath(candidate_path_boundaries, &candidate_path_data)) {
@@ -67,14 +69,14 @@ apollo::common::Status FallbackPath::Process(
 bool FallbackPath::DecidePathBounds(std::vector<PathBoundary>* boundary) {
   boundary->emplace_back();
   auto& path_bound = boundary->back();
-  // 1. Initialize the path boundaries to be an indefinitely large area.
+  // 1. Initialize the path boundaries to be an indefinitely large area.将路径边界初始化为无限大的区域
   if (!PathBoundsDeciderUtil::InitPathBoundary(*reference_line_info_,
                                                &path_bound, init_sl_state_)) {
     const std::string msg = "Failed to initialize path boundaries.";
     AERROR << msg;
     return false;
   }
-  // 2. Decide a rough boundary based on lane info and ADC's position
+  // 2. Decide a rough boundary based on lane info and ADC's position根据车道信息和ADC的位置确定车道粗略边界
   if (!PathBoundsDeciderUtil::GetBoundaryFromSelfLane(
           *reference_line_info_, init_sl_state_, &path_bound)) {
     AERROR << "Failed to decide a rough boundary based on self lane.";

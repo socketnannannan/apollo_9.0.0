@@ -52,7 +52,9 @@ bool TrafficLightProtectedScenario::Init(
   init_ = true;
   return true;
 }
-
+// 车辆前方参考线上的第一个overlap是交通灯类型的overlap
+// 距离停止标记overlap的距离小于start_traffic_light_scenario_distance
+// 前方overlap的信号灯存在红灯
 bool TrafficLightProtectedScenario::IsTransferable(
     const Scenario* const other_scenario, const Frame& frame) {
   if (!frame.local_view().planning_command->has_lane_follow_command()) {
@@ -62,14 +64,14 @@ bool TrafficLightProtectedScenario::IsTransferable(
     return false;
   }
   const auto& reference_line_info = frame.reference_line_info().front();
-  const auto& first_encountered_overlaps =
+  const auto& first_encountered_overlaps =               // 获取重叠区域
       reference_line_info.FirstEncounteredOverlaps();
   hdmap::PathOverlap* traffic_sign_overlap = nullptr;
   for (const auto& overlap : first_encountered_overlaps) {
-    if (overlap.first == ReferenceLineInfo::STOP_SIGN ||
+    if (overlap.first == ReferenceLineInfo::STOP_SIGN ||  // 停止标志和让行标志
         overlap.first == ReferenceLineInfo::YIELD_SIGN) {
       return false;
-    } else if (overlap.first == ReferenceLineInfo::SIGNAL) {
+    } else if (overlap.first == ReferenceLineInfo::SIGNAL) {  // 信号交通灯
       traffic_sign_overlap = const_cast<hdmap::PathOverlap*>(&overlap.second);
       break;
     }
@@ -77,7 +79,7 @@ bool TrafficLightProtectedScenario::IsTransferable(
   if (traffic_sign_overlap == nullptr) {
     return false;
   }
-  const std::vector<hdmap::PathOverlap>& traffic_light_overlaps =
+  const std::vector<hdmap::PathOverlap>& traffic_light_overlaps =  // all交通灯重叠
       reference_line_info.reference_line().map_path().signal_overlaps();
   const double start_check_distance =
       context_.scenario_config.start_traffic_light_scenario_distance();

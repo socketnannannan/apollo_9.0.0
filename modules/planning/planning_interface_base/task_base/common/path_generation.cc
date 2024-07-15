@@ -107,7 +107,7 @@ void PathGeneration::RecordDebugInfo(
 void PathGeneration::GetStartPointSLState() {
   const ReferenceLine& reference_line = reference_line_info_->reference_line();
   common::TrajectoryPoint planning_start_point = frame_->PlanningStartPoint();
-  if (FLAGS_use_front_axe_center_in_path_planning) {
+  if (FLAGS_use_front_axe_center_in_path_planning) {  // 调整规划起点位置，使其从前轴中心变为车辆中心
     double front_to_rear_axe_distance =
         apollo::common::VehicleConfigHelper::GetConfig()
             .vehicle_param()
@@ -128,7 +128,7 @@ void PathGeneration::GetStartPointSLState() {
 
   // Initialize some private variables.
   // ADC s/l info.
-  init_sl_state_ = reference_line.ToFrenetFrame(planning_start_point);
+  init_sl_state_ = reference_line.ToFrenetFrame(planning_start_point); // 将规划起点转换为 Frenet 坐标系下的 SL 状态，并存储在 init_sl_state_ 中
 }
 
 bool PathGeneration::GetSLBoundary(const PathData& path_data, int point_index,

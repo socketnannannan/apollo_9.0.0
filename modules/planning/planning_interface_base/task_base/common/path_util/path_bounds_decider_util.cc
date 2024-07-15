@@ -42,13 +42,13 @@ bool PathBoundsDeciderUtil::InitPathBoundary(
   CHECK_NOTNULL(path_bound);
   path_bound->clear();
   const auto& reference_line = reference_line_info.reference_line();
-  path_bound->set_delta_s(FLAGS_path_bounds_decider_resolution);
+  path_bound->set_delta_s(FLAGS_path_bounds_decider_resolution); // 设置路径边界分辨率
 
   const auto& vehicle_config =
       common::VehicleConfigHelper::Instance()->GetConfig();
   const double ego_front_to_center =
       vehicle_config.vehicle_param().front_edge_to_center();
-
+  // 遍历从初始 SL 状态到路径终点的参考线，并生成路径边界
   for (double curr_s = init_sl_state.first[0];
        curr_s < std::fmin(init_sl_state.first[0] +
                               std::fmax(FLAGS_path_bounds_horizon,
@@ -473,16 +473,17 @@ bool PathBoundsDeciderUtil::GetBoundaryFromSelfLane(
   double adc_lane_width =
       GetADCLaneWidth(reference_line, init_sl_state.first[0]);
   // Go through every point, update the boundary based on lane info and
-  // ADC's position.
+  // ADC's position.// 遍历每个点，根据车道信息和自车位置更新边界
   double past_lane_left_width = adc_lane_width / 2.0;
   double past_lane_right_width = adc_lane_width / 2.0;
   int path_blocked_idx = -1;
   for (size_t i = 0; i < path_bound->size(); ++i) {
     double curr_s = (*path_bound)[i].s;
-    // 1. Get the current lane width at current point.
+    // 1. Get the current lane width at current point.// 获取当前点的车道宽度
     double curr_lane_left_width = 0.0;
     double curr_lane_right_width = 0.0;
     double offset_to_lane_center = 0.0;
+    // 如果获取失败，则打印警告信息，并使用过去的车道左宽度和右宽度。
     if (!reference_line.GetLaneWidth(curr_s, &curr_lane_left_width,
                                      &curr_lane_right_width)) {
       AWARN << "Failed to get lane width at s = " << curr_s;
@@ -497,7 +498,7 @@ bool PathBoundsDeciderUtil::GetBoundaryFromSelfLane(
     }
 
     // 3. Calculate the proper boundary based on lane-width, ADC's position,
-    //    and ADC's velocity.
+    //    and ADC's velocity.// 根据车道宽度、自车位置和速度计算适当的边界
     double offset_to_map = 0.0;
     reference_line.GetOffsetToMap(curr_s, &offset_to_map);
 
@@ -524,15 +525,15 @@ bool PathBoundsDeciderUtil::GetBoundaryFromSelfLane(
 bool PathBoundsDeciderUtil::ExtendBoundaryByADC(
     const ReferenceLineInfo& reference_line_info, const SLState& init_sl_state,
     const double extend_buffer, PathBoundary* const path_bound) {
-  double adc_l_to_lane_center = init_sl_state.second[0];
+  double adc_l_to_lane_center = init_sl_state.second[0];  //adc距车道中心横向距离
   static constexpr double kMaxLateralAccelerations = 1.5;
 
-  double ADC_speed_buffer = (init_sl_state.second[1] > 0 ? 1.0 : -1.0) *
+  double ADC_speed_buffer = (init_sl_state.second[1] > 0 ? 1.0 : -1.0) *   // 基于车辆速度和最大横向加速度计算速度缓冲区
                             init_sl_state.second[1] * init_sl_state.second[1] /
                             kMaxLateralAccelerations / 2.0;
   double adc_half_width =
-      VehicleConfigHelper::GetConfig().vehicle_param().width() / 2.0;
-  double left_bound_adc =
+      VehicleConfigHelper::GetConfig().vehicle_param().width() / 2.0; // 车辆半宽
+  double left_bound_adc =   //adc车安全边界
       std::fmax(adc_l_to_lane_center, adc_l_to_lane_center + ADC_speed_buffer) +
       adc_half_width + extend_buffer;
   double right_bound_adc =
