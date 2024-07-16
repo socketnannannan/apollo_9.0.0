@@ -54,20 +54,25 @@ bool LaneChangePath::Init(const std::string& config_dir,
   // Load the config this task.
   return Task::LoadConfig<LaneChangePathConfig>(&config_);
 }
-
+// 首先判断是否产生多条参考线，若只有一条参考线，则保持直行。若有多条参考线，
+// 则根据一些条件（主车的前方和后方一定距离内是否有障碍物，
+// 旁边车道在一定距离内是否有障碍物）进行判断是否换道，当所有条件都满足时，则进行换道决策。
 apollo::common::Status LaneChangePath::Process(
     Frame* frame, ReferenceLineInfo* reference_line_info) {
-  UpdateLaneChangeStatus();
+  UpdateLaneChangeStatus();  //更新变道状态
   const auto& status = injector_->planning_context()
                            ->mutable_planning_status()
                            ->mutable_change_lane()
                            ->status();
+  // 如果当前路径不是变道路径 (IsChangeLanePath 返回 false) 
+  // 或者路径可以复用 (path_reusable 返回 true)，则跳过这次处理，直接返回成功状态。
   if (!reference_line_info->IsChangeLanePath() ||
       reference_line_info->path_reusable()) {
     ADEBUG << "Skip this time" << reference_line_info->IsChangeLanePath()
            << "path reusable" << reference_line_info->path_reusable();
     return Status::OK();
   }
+  // 如果当前状态不是 IN_CHANGE_LANE，则记录调试信息并返回错误状态，表示不满足变道条件。
   if (status != ChangeLaneStatus::IN_CHANGE_LANE) {
     ADEBUG << injector_->planning_context()
                   ->mutable_planning_status()
@@ -76,17 +81,20 @@ apollo::common::Status LaneChangePath::Process(
     return Status(ErrorCode::PLANNING_ERROR,
                   "Not satisfy lane change  conditions");
   }
-  std::vector<PathBoundary> candidate_path_boundaries;
-  std::vector<PathData> candidate_path_data;
+  std::vector<PathBoundary> candidate_path_boundaries; // 车辆行驶的路径边界
+  std::vector<PathData> candidate_path_data; // 存储候选路径数据
 
-  GetStartPointSLState();
+  GetStartPointSLState(); // 获取起点的 SL 状态。(轨迹拼接后的起始点)
+  // 决定路径边界，如果失败则返回错误状态。
   if (!DecidePathBounds(&candidate_path_boundaries)) {
     return Status(ErrorCode::PLANNING_ERROR, "lane change path bounds failed");
   }
+  // 优化路径数据，如果失败则返回错误状态。
   if (!OptimizePath(candidate_path_boundaries, &candidate_path_data)) {
     return Status(ErrorCode::PLANNING_ERROR,
                   "lane change path optimize failed");
   }
+  // 评估路径数据，如果没有有效的变道路径，则返回错误状态。
   if (!AssessPath(&candidate_path_data,
                   reference_line_info->mutable_path_data())) {
     return Status(ErrorCode::PLANNING_ERROR, "No valid lane change path");
@@ -94,7 +102,7 @@ apollo::common::Status LaneChangePath::Process(
 
   return Status::OK();
 }
-
+// https://blog.csdn.net/sinat_52032317/article/details/132438876
 bool LaneChangePath::DecidePathBounds(std::vector<PathBoundary>* boundary) {
   boundary->emplace_back();
   auto& path_bound = boundary->back();
@@ -218,19 +226,18 @@ bool LaneChangePath::AssessPath(std::vector<PathData>* candidate_path_data,
   return true;
 }
 // 根据车辆状态、参考线数量以及上一帧车辆是否处于换道状态判断是否换道。
-// UpdateLaneChangeStatus遍历所有动态障碍物，通过判断目标行驶方向，
-// 根据自车与目标之间速度，设置相应的安全距离，通过HysteresisFilter判断换道是否安全。
 void LaneChangePath::UpdateLaneChangeStatus() {
   std::string change_lane_id;
-  auto* prev_status = injector_->planning_context()
+  auto* prev_status = injector_->planning_context()  // 获取上一时刻变道状态
                           ->mutable_planning_status()
                           ->mutable_change_lane();
   double now = Clock::NowInSeconds();
-  // Init lane change status
+  // Init lane change status 如果没有上一时刻变道状态，初始化为变道完成状态，并返回。
   if (!prev_status->has_status()) {
     UpdateStatus(now, ChangeLaneStatus::CHANGE_LANE_FINISHED, "");
     return;
   }
+  // 检查当前帧中是否存在变道路径。如果不存在，且之前的状态是正在变道，则更新为变道完成状态，并返回。
   bool has_change_lane = frame_->reference_line_info().size() > 1;
   if (!has_change_lane) {
     if (prev_status->status() == ChangeLaneStatus::IN_CHANGE_LANE) {
@@ -239,17 +246,18 @@ void LaneChangePath::UpdateLaneChangeStatus() {
     }
     return;
   }
-  // has change lane
-  if (reference_line_info_->IsChangeLanePath()) {
+  // has change lane 存在变道路径的处理：
+  if (reference_line_info_->IsChangeLanePath()) {  // 检查是否存在变道路径
     const auto* history_frame = injector_->frame_history()->Latest();
-    if (!CheckLastFrameSucceed(history_frame)) {
+    if (!CheckLastFrameSucceed(history_frame)) {  //检查上一帧是否成功。如果失败，更新状态为变道失败。
       UpdateStatus(now, ChangeLaneStatus::CHANGE_LANE_FAILED, change_lane_id);
       is_exist_lane_change_start_position_ = false;
       return;
     }
-    is_clear_to_change_lane_ = IsClearToChangeLane(reference_line_info_);
+    is_clear_to_change_lane_ = IsClearToChangeLane(reference_line_info_); // 检查是否可以变道，并获取变道路径的 ID。
     change_lane_id = reference_line_info_->Lanes().Id();
     ADEBUG << "change_lane_id" << change_lane_id;
+    // 如果之前的状态是变道失败，且当前时间与上一次变道失败时间间隔大于配置的冻结时间，则更新状态为正在变道。
     if (prev_status->status() == ChangeLaneStatus::CHANGE_LANE_FAILED) {
       if (now - prev_status->timestamp() >
           config_.change_lane_fail_freeze_time()) {
@@ -257,6 +265,7 @@ void LaneChangePath::UpdateLaneChangeStatus() {
         ADEBUG << "change lane again after failed";
       }
       return;
+      // 如果之前的状态是变道完成，且当前时间与上一次变道完成时间间隔大于配置的冻结时间，则更新状态为正在变道。
     } else if (prev_status->status() ==
                ChangeLaneStatus::CHANGE_LANE_FINISHED) {
       if (now - prev_status->timestamp() >
@@ -264,6 +273,7 @@ void LaneChangePath::UpdateLaneChangeStatus() {
         UpdateStatus(now, ChangeLaneStatus::IN_CHANGE_LANE, change_lane_id);
         AINFO << "change lane again after success";
       }
+      // 如果之前的状态是正在变道，且路径 ID 发生变化，则更新状态为变道完成。
     } else if (prev_status->status() == ChangeLaneStatus::IN_CHANGE_LANE) {
       if (prev_status->path_id() != change_lane_id) {
         AINFO << "change_lane_id" << change_lane_id << "prev"

@@ -112,10 +112,11 @@ Status NaviPlanning::InitFrame(const uint32_t sequence_num,
 
 void NaviPlanning::RunOnce(const LocalView& local_view,
                            ADCTrajectory* const trajectory_pb) {
+  // 获取局部视图数据和当前时间戳：
   local_view_ = local_view;
   const double start_timestamp = Clock::NowInSeconds();
 
-  // recreate reference line provider in every cycle
+  // recreate reference line provider in every cycle  重新创建参考线提供器：
   hdmap_ = HDMapUtil::BaseMapPtr(*local_view.relative_map);
   const ReferenceLineConfig* reference_line_config = nullptr;
   if (config_.has_reference_line_config()) {
@@ -127,19 +128,19 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
       injector_->vehicle_state(), reference_line_config,
       local_view_.relative_map);
 
-  // localization
+  // localization 获取定位和底盘信息：
   ADEBUG << "Get localization: "
          << local_view_.localization_estimate->DebugString();
 
   // chassis
   ADEBUG << "Get chassis: " << local_view_.chassis->DebugString();
-
+  // 更新车辆状态：
   Status status = injector_->vehicle_state()->Update(
       *local_view_.localization_estimate, *local_view_.chassis);
-
+  // 计算车辆配置：
   auto vehicle_config =
       ComputeVehicleConfigFromLocalization(*local_view_.localization_estimate);
-
+  // 拼接上一个发布的轨迹：
   if (last_vehicle_config_.is_valid_ && vehicle_config.is_valid_) {
     auto x_diff_map = vehicle_config.x_ - last_vehicle_config_.x_;
     auto y_diff_map = vehicle_config.y_ - last_vehicle_config_.y_;
@@ -190,7 +191,7 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
 
   const double planning_cycle_time = 1.0 / FLAGS_planning_loop_rate;
 
-  std::vector<TrajectoryPoint> stitching_trajectory;
+  std::vector<TrajectoryPoint> stitching_trajectory;  // 拼接轨迹
   std::string replan_reason;
   stitching_trajectory = TrajectoryStitcher::ComputeStitchingTrajectory(
       *(local_view_.chassis), vehicle_state, start_timestamp,

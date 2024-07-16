@@ -54,7 +54,7 @@ TrajectoryPoint TrajectoryStitcher::ComputeTrajectoryPointFromVehicleState(
   point.set_relative_time(planning_cycle_time);
   return point;
 }
-
+// 在特定情况下重新初始化拼接轨迹。当需要重新规划轨迹时，该函数会生成一个新的轨迹点。
 std::vector<TrajectoryPoint>
 TrajectoryStitcher::ComputeReinitStitchingTrajectory(
     const double planning_cycle_time, const VehicleState& vehicle_state) {
@@ -62,6 +62,9 @@ TrajectoryStitcher::ComputeReinitStitchingTrajectory(
   static constexpr double kEpsilon_v = 0.1;
   static constexpr double kEpsilon_a = 0.4;
   // TODO(Jinyun/Yu): adjust kEpsilon if corrected IMU acceleration provided
+  // 检查车辆的线速度和加速度是否接近零：
+  // 如果速度和加速度都接近零，则根据当前车辆状态计算轨迹点。
+  // 否则，预测车辆状态并计算轨迹点。
   if (std::abs(vehicle_state.linear_velocity()) < kEpsilon_v &&
       std::abs(vehicle_state.linear_acceleration()) < kEpsilon_a) {
     reinit_point = ComputeTrajectoryPointFromVehicleState(planning_cycle_time,
@@ -116,6 +119,21 @@ void TrajectoryStitcher::TransformLastPublishedTrajectory(
    (or) 2. we don't have the trajectory from last planning cycle
    (or) 3. the position deviation from actual and target is too high
 */
+/* 
+方案1：
+根据ADC（Autonomous Driving Car）实际位置状态信息或根据ADC实际位置状态信息，通过车辆运动学推导0.1s后的位置状态信息，
+作为规划起始点状态，在Apollo中，这一方案叫做重规划（Replan），但是它属于轨迹拼接的一种，只是拼接点集只有一个点而已。
+方案2：
+根据当前帧时间戳以及ADC实际位置信息，在上一帧轨迹中寻找匹配点，将上一帧轨迹中匹配点往后0.1s所对应的轨迹点作为当前帧的规划起始状态点，
+待当前帧规划生成轨迹后，再和上一帧轨迹中所选择的规划起始点前一段距离的轨迹点进行拼接，形成一条完整的车辆运动轨迹，发送给下游控制模块。
+严格来说，以上两种方案都属于轨迹拼接，区别是方案1拼接轨迹只有一个点，而方案2的拼接轨迹是上一帧的部分有序点集，但是在Apollo代码中，
+称第一种方案叫做重新初始化拼接点（也叫重规划）。
+https://blog.csdn.net/qq_38422317/article/details/129349174?ops_request_misc=%257B%2522request%255Fid%2522%253A%2522172111539416800226514232%2522%252C%2522scm%2522%253A%252220140713.130102334..%2522%257D&request_id=172111539416800226514232&biz_id=0&utm_medium=distribute.pc_search_result.none-task-blog-2~all~sobaiduend~default-2-129349174-null-null.142^v100^pc_search_result_base1&utm_term=%E8%BD%A8%E8%BF%B9%E6%8B%BC%E6%8E%A5&spm=1018.2226.3001.4187
+在以下情况下，根据当前车辆状态进行规划：
+   1.自动驾驶模式关闭
+   （或）2. 我们没有上一个计划周期的轨迹
+   （或）3.位置与实际值和目标值的偏差过大
+*/
 std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
     const canbus::Chassis& vehicle_chassis, const VehicleState& vehicle_state,
     const double current_timestamp, const double planning_cycle_time,
@@ -144,13 +162,13 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
     *replan_reason = "replan for empty previous trajectory.";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
-
+  // 检查当前时间是否在上一个轨迹的时间范围内：如果当前时间在上一个轨迹的时间范围外，则返回重新初始化的拼接轨迹。
   const double veh_rel_time =
       current_timestamp - prev_trajectory->header_time();
 
   size_t time_matched_index =
       prev_trajectory->QueryLowerBoundPoint(veh_rel_time);
-
+  // 检查时间匹配点是否存在路径点：如果时间匹配点没有路径点，则返回重新初始化的拼接轨迹。
   if (time_matched_index == 0 &&
       veh_rel_time < prev_trajectory->StartPoint().relative_time()) {
     AWARN << "current time smaller than the previous trajectory's first time";
@@ -173,7 +191,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
     *replan_reason = "replan for previous trajectory missed path point";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
   }
-
+  // 查询位置匹配点和检查偏差 如果根据偏差重新规划，检查纵向、横向和时间偏差是否超过阈值。如果超过阈值，则返回重新初始化的拼接轨迹。
   size_t position_matched_index = prev_trajectory->QueryNearestPointWithBuffer(
       {vehicle_state.x(), vehicle_state.y()}, 1.0e-6);
 
@@ -246,7 +264,8 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
     ADEBUG << "replan according to certain amount of "
            << "lat、lon and time offset is disabled";
   }
-
+  // 当前时刻的绝对时间-上一时刻轨迹的初始时间+planning_cycle_time
+  // 计算前向时间匹配索引，获取时间和位置匹配索引的最小值。
   double forward_rel_time = veh_rel_time + planning_cycle_time;
 
   size_t forward_time_index =
@@ -254,7 +273,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
 
   ADEBUG << "Position matched index:\t" << position_matched_index;
   ADEBUG << "Time matched index:\t" << time_matched_index;
-
+  // 选取时间匹配索引和位置匹配索引中的较小索引作为匹配点索引值matched_index
   auto matched_index = std::min(time_matched_index, position_matched_index);
 
   std::vector<TrajectoryPoint> stitching_trajectory(
@@ -262,7 +281,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
           std::max(0, static_cast<int>(matched_index - preserved_points_num)),
       prev_trajectory->begin() + forward_time_index + 1);
   ADEBUG << "stitching_trajectory size: " << stitching_trajectory.size();
-
+  // 生成拼接轨迹：
   const double zero_s = stitching_trajectory.back().path_point().s();
   for (auto& tp : stitching_trajectory) {
     if (!tp.has_path_point()) {
